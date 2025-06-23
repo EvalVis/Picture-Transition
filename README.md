@@ -2,7 +2,7 @@
 
 A Java Swing project for viewing picture transitions at desired speed.
 
-![Showcase](images/pictureTransition.gif)
+![Demonstration](images/pictureTransition.gif)
 
 ## Functionality
 
