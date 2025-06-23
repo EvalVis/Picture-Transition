@@ -15,7 +15,7 @@ A Java Swing project for viewing picture transitions at desired speed.
 - JPG
 - JPEG
 - BMP
-- GIF (only sees the first frame)
+- GIF (only the first frame is taken)
 - WBMP
 
 ## Using the Picture Transition software.
