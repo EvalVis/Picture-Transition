@@ -2,6 +2,8 @@ package com.programmersdiary;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -20,26 +22,102 @@ public class PictureBlender {
 	
 	public PictureBlender(File[] files) {
 		pictures = new ArrayList<>();
-		for (File file : files) load(file);
-		currentPictureIndex = 0;
-		currentPixels = Arrays.copyOf(pictures.get(0), width * height);
-		transitionCounter = 0;
+		List<BufferedImage> loadedImages = loadAllImages(files);
+		setDimensions(loadedImages);
+		processAllImages(loadedImages);
+		currentPixels = new int[width * height];
+		initializeCurrentState();
 	}
 
-	private void load(File file) {
+	private List<BufferedImage> loadAllImages(File[] files) {
+		List<BufferedImage> loadedImages = new ArrayList<>();
+		for (File file : files) {
+			BufferedImage image = loadSingleImage(file);
+			if (image != null) {
+				loadedImages.add(image);
+			}
+		}
+		return loadedImages;
+	}
+
+	private BufferedImage loadSingleImage(File file) {
 		try {
-			BufferedImage image = ImageIO.read(file);
-			width = image.getWidth();
-			height = image.getHeight();
-			int[] pixels = new int[width * height];
-			image.getRGB(0, 0, width, height, pixels, 0, width);
-			pictures.add(pixels);
+			return ImageIO.read(file);
 		} catch(IOException e) {
+			System.err.println("Failed to load image: " + file.getName());
 			e.printStackTrace();
+			return null;
 		}
 	}
 
+	private void setDimensions(List<BufferedImage> images) {
+		int maxWidth = 0;
+		int maxHeight = 0;
+		for (BufferedImage image : images) {
+			maxWidth = Math.max(maxWidth, image.getWidth());
+			maxHeight = Math.max(maxHeight, image.getHeight());
+		}
+		width = maxWidth;
+		height = maxHeight;
+	}
+
+	private void processAllImages(List<BufferedImage> images) {
+		for (BufferedImage image : images) {
+			resizeAndAdd(image);
+		}
+	}
+
+	private void initializeCurrentState() {
+		currentPictureIndex = 0;
+		System.arraycopy(pictures.get(0), 0, currentPixels, 0, width * height);
+		transitionCounter = 0;
+	}
+
+	private void resizeAndAdd(BufferedImage originalImage) {
+		BufferedImage resizedImage = createResizedCanvas();
+		Graphics2D g2d = setupGraphics(resizedImage);
+		drawImageCentered(g2d, originalImage);
+		g2d.dispose();
+		addPixelsToCollection(resizedImage);
+	}
+
+	private BufferedImage createResizedCanvas() {
+		return new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+	}
+
+	private Graphics2D setupGraphics(BufferedImage image) {
+		Graphics2D g2d = image.createGraphics();
+		setRenderingHints(g2d);
+		fillBackground(g2d);
+		return g2d;
+	}
+
+	private void setRenderingHints(Graphics2D g2d) {
+		g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+	}
+
+	private void fillBackground(Graphics2D g2d) {
+		g2d.setColor(Color.BLACK);
+		g2d.fillRect(0, 0, width, height);
+	}
+
+	private void drawImageCentered(Graphics2D g2d, BufferedImage originalImage) {
+		int x = (width - originalImage.getWidth()) / 2;
+		int y = (height - originalImage.getHeight()) / 2;
+		g2d.drawImage(originalImage, x, y, null);
+	}
+
+	private void addPixelsToCollection(BufferedImage image) {
+		int[] pixels = new int[width * height];
+		image.getRGB(0, 0, width, height, pixels, 0, width);
+		pictures.add(pixels);
+	}
+	
 	public void transition(double transitionWeight) {
+		if (pictures.isEmpty()) return;
+		
 		if (currentPictureIndex >= (pictures.size() - 1)) {
 			currentPictureIndex = 0;
 			transitionCounter = 0;
@@ -63,7 +141,7 @@ public class PictureBlender {
 		System.arraycopy(pictures.get(currentPictureIndex), 0, currentPixels, 0, currentPixels.length);
 	}
 
-		private void progressTransition(double transitionWeight) {
+	private void progressTransition(double transitionWeight) {
 		int nextIndex = (currentPictureIndex + 1) % pictures.size();
 		double transitionProgress = (double) transitionCounter / transitionWeight;
 
